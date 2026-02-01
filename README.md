@@ -87,7 +87,7 @@ ALLOWED_HOSTS=mcp-dataverse.yourdomain.com,localhost,127.0.0.1
 }
 ```
 
-Αν το Cursor ζητά **SSE** αντί για streamableHttp, χρησιμοποίησε:
+Ο server υποστηρίζει και **SSE** (stateful mode με sessions). Αν το Cursor προτιμά SSE:
 
 ```json
 {
@@ -100,7 +100,7 @@ ALLOWED_HOSTS=mcp-dataverse.yourdomain.com,localhost,127.0.0.1
 }
 ```
 
-Το MCP server υποστηρίζει Streamable HTTP (POST-based). Το Cursor θα συνδεθεί αυτόματα.
+**Σημείωση:** Μπορείς να αφήσεις το Cursor να διαλέξει το transport (αφαίρεσε το `transport` field) ή να χρησιμοποιήσεις `streamableHttp`.
 
 ## Health check
 

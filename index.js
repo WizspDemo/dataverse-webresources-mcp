@@ -2,8 +2,10 @@
  * MCP server for Dataverse web resources - HTTP/Streamable transport (online).
  * Config from env: DATAVERSE_URL, DATAVERSE_ACCESS_TOKEN or AZURE_CLIENT_ID/AZURE_TENANT_ID/AZURE_CLIENT_SECRET.
  * Binds to PORT (default 3000), suitable for Coolify/Docker deployment.
+ * Stateful mode: supports SSE (GET) for Cursor compatibility.
  */
 
+import { randomUUID } from 'node:crypto';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { createMcpExpressApp } from '@modelcontextprotocol/sdk/server/express.js';
@@ -174,18 +176,51 @@ const allowedHosts = process.env.ALLOWED_HOSTS
   : undefined;
 const app = createMcpExpressApp({ host: '0.0.0.0', allowedHosts });
 
+// Stateful: store transports by session ID (enables SSE for Cursor)
+const transports = {};
+const servers = {};
+
 app.post('/mcp', async (req, res) => {
-  const server = getServer();
+  const sessionId = req.headers['mcp-session-id'];
   try {
-    const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: undefined, // stateless – one transport per request
-    });
-    await server.connect(transport);
-    await transport.handleRequest(req, res, req.body);
-    res.on('close', () => {
-      transport.close();
-      server.close();
-    });
+    let transport;
+    if (sessionId && transports[sessionId]) {
+      transport = transports[sessionId];
+      await transport.handleRequest(req, res, req.body);
+      return;
+    }
+    const isInit = req.body && (Array.isArray(req.body) ? req.body.some((m) => m?.method === 'initialize') : req.body.method === 'initialize');
+    if (!sessionId && isInit) {
+      const server = getServer();
+      transport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: () => randomUUID(),
+        onsessioninitialized: (sid) => {
+          transports[sid] = transport;
+          servers[sid] = server;
+          console.error('MCP session initialized:', sid);
+        },
+      });
+      transport.onclose = () => {
+        const sid = transport.sessionId;
+        if (sid) {
+          delete transports[sid];
+          if (servers[sid]) {
+            servers[sid].close();
+            delete servers[sid];
+          }
+        }
+      };
+      await server.connect(transport);
+      await transport.handleRequest(req, res, req.body);
+      return;
+    }
+    if (!sessionId || !transports[sessionId]) {
+      res.status(400).json({
+        jsonrpc: '2.0',
+        error: { code: -32000, message: 'Bad Request: No valid session ID. Send initialize first.' },
+        id: null,
+      });
+    }
   } catch (error) {
     console.error('Error handling MCP request:', error);
     if (!res.headersSent) {
@@ -198,20 +233,29 @@ app.post('/mcp', async (req, res) => {
   }
 });
 
-app.get('/mcp', (req, res) => {
-  res.status(405).json({
-    jsonrpc: '2.0',
-    error: { code: -32000, message: 'Method not allowed. Stateless mode does not support GET.' },
-    id: null,
-  });
+app.get('/mcp', async (req, res) => {
+  const sessionId = req.headers['mcp-session-id'];
+  if (!sessionId || !transports[sessionId]) {
+    res.status(400).send('Invalid or missing MCP-Session-Id. Initialize session via POST first.');
+    return;
+  }
+  const transport = transports[sessionId];
+  await transport.handleRequest(req, res);
 });
 
-app.delete('/mcp', (req, res) => {
-  res.status(405).json({
-    jsonrpc: '2.0',
-    error: { code: -32000, message: 'Method not allowed.' },
-    id: null,
-  });
+app.delete('/mcp', async (req, res) => {
+  const sessionId = req.headers['mcp-session-id'];
+  if (!sessionId || !transports[sessionId]) {
+    res.status(400).send('Invalid or missing session ID');
+    return;
+  }
+  try {
+    const transport = transports[sessionId];
+    await transport.handleRequest(req, res);
+  } catch (error) {
+    console.error('Error handling session termination:', error);
+    if (!res.headersSent) res.status(500).send('Error');
+  }
 });
 
 // Health check for Coolify/load balancers
