@@ -12,11 +12,11 @@ RUN npm ci --omit=dev
 # Copy source
 COPY . .
 
-# Expose port (Coolify uses PORT env, default 3000)
+# Expose port (Coolify sets PORT env, e.g. 8000)
 EXPOSE 3000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget -qO- http://localhost:3000/health || exit 1
+# Health check – uses same PORT as the app (Coolify passes PORT=8000 etc.)
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget -qO- "http://127.0.0.1:${PORT:-3000}/health" || exit 1
 
 CMD ["node", "index.js"]
