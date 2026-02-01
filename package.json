@@ -1,0 +1,18 @@
+{
+  "name": "dataverse-webresources-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for Dataverse web resources (list, upload, update, delete, publish) - HTTP/online",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": ["mcp", "dataverse", "power-platform", "web-resources"],
+  "license": "MIT",
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "express": "^5.0.0",
+    "zod": "^3.23.0"
+  }
+}
