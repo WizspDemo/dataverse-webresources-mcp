@@ -52,6 +52,7 @@ DATAVERSE_URL=https://yourorg.crm4.dynamics.com
 AZURE_CLIENT_ID=...
 AZURE_TENANT_ID=...
 AZURE_CLIENT_SECRET=...
+ALLOWED_HOSTS=mcp-dataverse.yourdomain.com,localhost,127.0.0.1
 ```
 
 Ή με access token:
@@ -59,7 +60,10 @@ AZURE_CLIENT_SECRET=...
 ```
 DATAVERSE_URL=https://yourorg.crm4.dynamics.com
 DATAVERSE_ACCESS_TOKEN=...
+ALLOWED_HOSTS=mcp-dataverse.yourdomain.com,localhost,127.0.0.1
 ```
+
+**ALLOWED_HOSTS** (προαιρετικό): Λίστα hosts με κόμμα – εξαλείφει το DNS rebinding warning. Βάλε το domain του Coolify και `localhost,127.0.0.1` για healthchecks.
 
 ### 5. Deploy
 

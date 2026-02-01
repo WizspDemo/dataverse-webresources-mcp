@@ -168,8 +168,11 @@ function getServer() {
   return server;
 }
 
-// Express app – bind to 0.0.0.0 for containers, allow hosts for Coolify domain
-const app = createMcpExpressApp({ host: '0.0.0.0', allowedHosts: undefined });
+// ALLOWED_HOSTS: comma-separated (e.g. "mcp.example.com,localhost") – suppresses DNS rebinding warning
+const allowedHosts = process.env.ALLOWED_HOSTS
+  ? process.env.ALLOWED_HOSTS.split(',').map((h) => h.trim()).filter(Boolean)
+  : undefined;
+const app = createMcpExpressApp({ host: '0.0.0.0', allowedHosts });
 
 app.post('/mcp', async (req, res) => {
   const server = getServer();
